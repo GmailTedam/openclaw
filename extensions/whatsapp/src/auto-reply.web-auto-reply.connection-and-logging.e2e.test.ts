@@ -601,4 +601,44 @@ describe("web auto-reply connection", () => {
 
     expect(markDispatchIdle).toHaveBeenCalled();
   });
+
+  it("starts composing before reply resolution begins for accepted direct messages", async () => {
+    const sendComposing = vi.fn(async () => undefined);
+    const replyResolver = vi.fn(async () => {
+      expect(sendComposing).toHaveBeenCalledTimes(1);
+      return undefined;
+    });
+
+    setLoadConfigMock({
+      channels: { whatsapp: { allowFrom: ["*"] } },
+    } satisfies OpenClawConfig);
+
+    await monitorWebChannel(
+      false,
+      async ({ onMessage }) => {
+        await onMessage({
+          id: "typing-early",
+          from: "+1000",
+          conversationId: "+1000",
+          to: "+2000",
+          body: "hello",
+          timestamp: Date.now(),
+          chatType: "direct",
+          chatId: "direct:+1000",
+          accountId: "default",
+          sendComposing,
+          reply: vi.fn(async () => undefined),
+          sendMedia: vi.fn(async () => undefined),
+        });
+        return createMockWebListener();
+      },
+      false,
+      replyResolver,
+    );
+
+    resetLoadConfigMock();
+
+    expect(replyResolver).toHaveBeenCalledTimes(1);
+    expect(sendComposing).toHaveBeenCalledTimes(1);
+  });
 });

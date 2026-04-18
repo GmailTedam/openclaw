@@ -7,7 +7,7 @@ import { registerDispatcher } from "./dispatcher-registry.js";
 import { normalizeReplyPayload, type NormalizeReplySkipReason } from "./normalize-reply.js";
 import type { ReplyDispatchKind, ReplyDispatcher } from "./reply-dispatcher.types.js";
 import type { ResponsePrefixContext } from "./response-prefix-template.js";
-import type { TypingController } from "./typing.js";
+import { createTypingController, type TypingController } from "./typing.js";
 
 export type { ReplyDispatchKind, ReplyDispatcher } from "./reply-dispatcher.types.js";
 
@@ -68,9 +68,24 @@ export type ReplyDispatcherWithTypingOptions = Omit<ReplyDispatcherOptions, "onI
   onCleanup?: () => void;
 };
 
+type InternalReplyDispatcherWithTypingOptions = ReplyDispatcherWithTypingOptions & {
+  /**
+   * Internal-only flag used by WhatsApp to start composing as soon as inbound
+   * gating accepts the message, before reply hooks and lazy runtime bootstrap.
+   */
+  startTypingOnAccept?: boolean;
+};
+
+type InternalTypingReplyOptions = Pick<
+  GetReplyOptions,
+  "onReplyStart" | "onTypingController" | "onTypingCleanup"
+> & {
+  internalTypingController?: TypingController;
+};
+
 type ReplyDispatcherWithTypingResult = {
   dispatcher: ReplyDispatcher;
-  replyOptions: Pick<GetReplyOptions, "onReplyStart" | "onTypingController" | "onTypingCleanup">;
+  replyOptions: InternalTypingReplyOptions;
   markDispatchIdle: () => void;
   /** Signal that the model run is complete so the typing controller can stop. */
   markRunComplete: () => void;
@@ -220,15 +235,19 @@ export function createReplyDispatcher(options: ReplyDispatcherOptions): ReplyDis
 export function createReplyDispatcherWithTyping(
   options: ReplyDispatcherWithTypingOptions,
 ): ReplyDispatcherWithTypingResult {
-  const { typingCallbacks, onReplyStart, onIdle, onCleanup, ...dispatcherOptions } = options;
+  const { typingCallbacks, onReplyStart, onIdle, onCleanup, ...dispatcherOptions } =
+    options as InternalReplyDispatcherWithTypingOptions;
   const resolvedOnReplyStart = onReplyStart ?? typingCallbacks?.onReplyStart;
   const resolvedOnIdle = onIdle ?? typingCallbacks?.onIdle;
   const resolvedOnCleanup = onCleanup ?? typingCallbacks?.onCleanup;
-  let typingController: TypingController | undefined;
+  const typingController = createTypingController({
+    onReplyStart: resolvedOnReplyStart,
+    onCleanup: resolvedOnCleanup,
+  });
   const dispatcher = createReplyDispatcher({
     ...dispatcherOptions,
     onIdle: () => {
-      typingController?.markDispatchIdle();
+      typingController.markDispatchIdle();
       resolvedOnIdle?.();
     },
   });
@@ -236,18 +255,23 @@ export function createReplyDispatcherWithTyping(
   return {
     dispatcher,
     replyOptions: {
-      onReplyStart: resolvedOnReplyStart,
+      onReplyStart: typingController.onReplyStart,
       onTypingCleanup: resolvedOnCleanup,
       onTypingController: (typing) => {
-        typingController = typing;
+        if (typing !== typingController) {
+          // Reuse the eagerly-started controller so late run-start hooks don't
+          // spin up a second composing lifecycle for the same inbound turn.
+          return;
+        }
       },
+      internalTypingController: typingController,
     },
     markDispatchIdle: () => {
-      typingController?.markDispatchIdle();
+      typingController.markDispatchIdle();
       resolvedOnIdle?.();
     },
     markRunComplete: () => {
-      typingController?.markRunComplete();
+      typingController.markRunComplete();
     },
   };
 }

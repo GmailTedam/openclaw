@@ -37,9 +37,12 @@ import { emitPreAgentMessageHooks } from "./message-preprocess-hooks.js";
 import { createFastTestModelSelectionState } from "./model-selection.js";
 import { initSessionState } from "./session.js";
 import { resolveStoredModelOverride } from "./stored-model-override.js";
-import { createTypingController } from "./typing.js";
+import { createTypingController, type TypingController } from "./typing.js";
 
 type ResetCommandAction = "new" | "reset";
+type InternalGetReplyOptions = GetReplyOptions & {
+  internalTypingController?: TypingController;
+};
 
 let sessionResetModelRuntimePromise: Promise<
   typeof import("./session-reset-model.runtime.js")
@@ -170,6 +173,7 @@ export async function getReplyFromConfig(
   opts?: GetReplyOptions,
   configOverride?: OpenClawConfig,
 ): Promise<ReplyPayload | ReplyPayload[] | undefined> {
+  const internalOpts = opts as InternalGetReplyOptions | undefined;
   const isFastTestEnv = process.env.OPENCLAW_TEST_FAST === "1";
   const cfg = resolveGetReplyConfig({
     loadConfig,
@@ -243,13 +247,15 @@ export async function getReplyFromConfig(
     agentCfg?.typingIntervalSeconds ?? sessionCfg?.typingIntervalSeconds;
   const typingIntervalSeconds =
     typeof configuredTypingSeconds === "number" ? configuredTypingSeconds : 6;
-  const typing = createTypingController({
-    onReplyStart: opts?.onReplyStart,
-    onCleanup: opts?.onTypingCleanup,
-    typingIntervalSeconds,
-    silentToken: SILENT_REPLY_TOKEN,
-    log: defaultRuntime.log,
-  });
+  const typing =
+    internalOpts?.internalTypingController ??
+    createTypingController({
+      onReplyStart: opts?.onReplyStart,
+      onCleanup: opts?.onTypingCleanup,
+      typingIntervalSeconds,
+      silentToken: SILENT_REPLY_TOKEN,
+      log: defaultRuntime.log,
+    });
   opts?.onTypingController?.(typing);
 
   const finalized = finalizeInboundContext(ctx);
