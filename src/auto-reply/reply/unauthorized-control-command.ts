@@ -51,6 +51,9 @@ export function isSilentUnauthorizedWholeMessageControlCommand(params: {
   return (
     (!params.commandAuthorized || !isAuthorizedSender) &&
     isWholeMessageCommand &&
-    (hasControlCommand(rawBodyTrimmed, params.cfg) || isResetOrNewCommand)
+    // Use config-agnostic command detection here so disabled privileged commands
+    // (for example /config show when commands.config=false) still suppress early
+    // typing when they would later be silently ignored for unauthorized senders.
+    (hasControlCommand(rawBodyTrimmed) || isResetOrNewCommand)
   );
 }

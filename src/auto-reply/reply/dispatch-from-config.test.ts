@@ -899,6 +899,45 @@ describe("dispatchReplyFromConfig", () => {
     expect(startTypingLoop).not.toHaveBeenCalled();
   });
 
+  it("does not start eager typing for disabled privileged commands from unauthorized senders", async () => {
+    setNoAbort();
+    const dispatcher = createDispatcher();
+    const startTypingLoop = vi.fn(async () => undefined);
+    const replyResolver = vi.fn(async () => undefined);
+    const ctx = buildTestCtx({
+      Provider: "whatsapp",
+      Surface: "whatsapp",
+      ChatType: "direct",
+      CommandAuthorized: false,
+      CommandBody: "/config show",
+      RawBody: "/config show",
+      Body: "/config show",
+      OriginatingChannel: "whatsapp",
+      OriginatingTo: "+15550001111",
+    });
+
+    await dispatchReplyFromConfig({
+      ctx,
+      cfg: {
+        commands: {
+          config: false,
+          text: true,
+        },
+      } as OpenClawConfig,
+      dispatcher,
+      replyResolver,
+      replyOptions: {
+        internalStartTypingOnAccept: true,
+        internalTypingController: {
+          startTypingLoop,
+        },
+      } as GetReplyOptions,
+    });
+
+    expect(replyResolver).toHaveBeenCalledTimes(1);
+    expect(startTypingLoop).not.toHaveBeenCalled();
+  });
+
   it("routes when provider is webchat but surface carries originating channel metadata", async () => {
     setNoAbort();
     mocks.routeReply.mockClear();

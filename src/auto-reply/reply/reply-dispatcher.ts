@@ -1,6 +1,7 @@
 import type { TypingCallbacks } from "../../channels/typing.js";
 import type { HumanDelayConfig } from "../../config/types.js";
 import { generateSecureInt } from "../../infra/secure-random.js";
+import { defaultRuntime } from "../../runtime.js";
 import { sleep } from "../../utils.js";
 import type { GetReplyOptions, ReplyPayload } from "../types.js";
 import { registerDispatcher } from "./dispatcher-registry.js";
@@ -249,6 +250,7 @@ export function createReplyDispatcherWithTyping(
         onReplyStart: resolvedOnReplyStart,
         onCleanup: resolvedOnCleanup,
         typingIntervalSeconds: internalOptions.typingIntervalSeconds,
+        log: defaultRuntime.log,
       })
     : undefined;
   const dispatcher = createReplyDispatcher({
