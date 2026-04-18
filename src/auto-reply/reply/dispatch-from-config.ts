@@ -903,6 +903,7 @@ export async function dispatchReplyFromConfig(
         }),
         commandAuthorized,
         agentId: sessionAgentId,
+        includeDisabledCommands: true,
       })
     ) {
       await internalReplyOptions.internalTypingController?.startTypingLoop();

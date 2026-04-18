@@ -13,6 +13,7 @@ export function isSilentUnauthorizedWholeMessageControlCommand(params: {
   agentId?: string;
   commandBodyNormalized?: string;
   isAuthorizedSender?: boolean;
+  includeDisabledCommands?: boolean;
 }): boolean {
   if (!params.allowTextCommands) {
     return false;
@@ -47,13 +48,13 @@ export function isSilentUnauthorizedWholeMessageControlCommand(params: {
     normalizedCommandBody === rawBodyTrimmed ||
     normalizedCommandBody === rawBodyTrimmed.toLowerCase();
   const isResetOrNewCommand = /^\/(new|reset)(?:\s|$)/.test(normalizedCommandBody);
+  const isRecognizedControlCommand = params.includeDisabledCommands
+    ? hasControlCommand(rawBodyTrimmed)
+    : hasControlCommand(rawBodyTrimmed, params.cfg);
 
   return (
     (!params.commandAuthorized || !isAuthorizedSender) &&
     isWholeMessageCommand &&
-    // Use config-agnostic command detection here so disabled privileged commands
-    // (for example /config show when commands.config=false) still suppress early
-    // typing when they would later be silently ignored for unauthorized senders.
-    (hasControlCommand(rawBodyTrimmed) || isResetOrNewCommand)
+    (isRecognizedControlCommand || isResetOrNewCommand)
   );
 }
