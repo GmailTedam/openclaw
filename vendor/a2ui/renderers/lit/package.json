@@ -39,7 +39,7 @@
       ]
     },
     "serve": {
-      "command": "vite dev",
+      "command": "vite dev --host=::",
       "dependencies": [
         "build"
       ],
