@@ -43,7 +43,9 @@ class TestPackageSkillSecurity(TestCase):
     def create_skill(self, name="test-skill"):
         skill_dir = self.temp_dir / name
         skill_dir.mkdir(parents=True, exist_ok=True)
-        (skill_dir / "SKILL.md").write_text("---\nname: test-skill\ndescription: test\n---\n")
+        (skill_dir / "SKILL.md").write_text(
+            "---\nname: test-skill\ndescription: test\n---\n"
+        )
         (skill_dir / "script.py").write_text("print('ok')\n")
         return skill_dir
 

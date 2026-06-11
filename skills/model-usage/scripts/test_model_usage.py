@@ -24,15 +24,23 @@ class TestModelUsage(TestCase):
     def test_filter_by_days_keeps_recent_entries(self):
         today = date.today()
         entries = [
-            {"date": (today - timedelta(days=5)).strftime("%Y-%m-%d"), "modelBreakdowns": []},
-            {"date": (today - timedelta(days=1)).strftime("%Y-%m-%d"), "modelBreakdowns": []},
+            {
+                "date": (today - timedelta(days=5)).strftime("%Y-%m-%d"),
+                "modelBreakdowns": [],
+            },
+            {
+                "date": (today - timedelta(days=1)).strftime("%Y-%m-%d"),
+                "modelBreakdowns": [],
+            },
             {"date": today.strftime("%Y-%m-%d"), "modelBreakdowns": []},
         ]
 
         filtered = filter_by_days(entries, 2)
 
         self.assertEqual(len(filtered), 2)
-        self.assertEqual(filtered[0]["date"], (today - timedelta(days=1)).strftime("%Y-%m-%d"))
+        self.assertEqual(
+            filtered[0]["date"], (today - timedelta(days=1)).strftime("%Y-%m-%d")
+        )
         self.assertEqual(filtered[1]["date"], today.strftime("%Y-%m-%d"))
 
 
